@@ -2,6 +2,20 @@ from processing import process_dataframes
 import pandas as pd
 
 
+def _drop_key_duplicates(sample_df: pd.DataFrame, keys: list, sample_name: str) -> pd.DataFrame:
+    duplicate_by_keys = sample_df.duplicated(subset=keys).sum()
+    duplicate_by_all = sample_df.duplicated().sum()
+    if duplicate_by_keys != duplicate_by_all:
+        raise ValueError(
+            "Found non-identical duplicates for sample "
+            f"{sample_name}. Duplicates by keys: {duplicate_by_keys}, "
+            f"duplicates by all columns: {duplicate_by_all}."
+        )
+    if duplicate_by_all:
+        return sample_df.drop_duplicates()
+    return sample_df
+
+
 def main(roles: dict, **kwargs):
     possible_keys = [k for k, v in roles.items() if v[0] in ["id", "date"]]
 
@@ -20,6 +34,7 @@ def main(roles: dict, **kwargs):
         if not keys:
             print("DF without keys was found")
             continue
+        df = _drop_key_duplicates(df, list(keys), name)
         groups.setdefault(keys, {})[name] = df
 
     group_items = list(groups.items())
