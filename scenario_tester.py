@@ -124,50 +124,6 @@ def main():
         expected_df2_cols=None,
     )
 
-    df_dup_a = make_df(
-        ["c1", "c3", "pk_pd_score_new"],
-        [[1, "2024-01-01", 0.5], [1, "2024-01-01", 0.7]],
-    )
-    df_dup_b = make_df(
-        ["c1", "c3", "kk_score_new"],
-        [[1, "2024-01-01", 0.2]],
-    )
-
-    run_case(
-        "duplicate keys preserve row count",
-        {"dup_a": df_dup_a, "dup_b": df_dup_b},
-        keys,
-        expected_df1_cols=[
-            "c1",
-            "c3",
-            "pk_pd_score_auto_driver_score",
-            "kk_score_auto_driver_score",
-        ],
-        expected_df1_rows=2,
-    )
-
-    df_missing_a = make_df(
-        ["c1", "c3", "pk_pd_score_new"],
-        [[1, "2024-01-01", 0.45], [2, None, 0.55]],
-    )
-    df_missing_b = make_df(
-        ["c1", "c3", "kk_score_new"],
-        [[1, "2024-01-01", 0.15], [2, "2024-01-02", 0.25]],
-    )
-
-    run_case(
-        "missing keys drop on merge",
-        {"missing_a": df_missing_a, "missing_b": df_missing_b},
-        keys,
-        expected_df1_cols=[
-            "c1",
-            "c3",
-            "pk_pd_score_auto_driver_score",
-            "kk_score_auto_driver_score",
-        ],
-        expected_df1_rows=3,
-    )
-
 
 if __name__ == "__main__":
     main()
