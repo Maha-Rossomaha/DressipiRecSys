@@ -24,8 +24,23 @@ def _drop_key_duplicates(sample_df: pd.DataFrame, keys: list, sample_name: str) 
             f"duplicates by all columns: {duplicate_by_all}."
         )
     if duplicate_by_all:
-        return sample_df.drop_duplicates()
+        raise ValueError(
+            "Found duplicate rows for sample "
+            f"{sample_name}. Duplicates by keys: {duplicate_by_keys}."
+        )
     return sample_df
+
+
+def _validate_missing_keys(sample_df: pd.DataFrame, keys: list, sample_name: str) -> None:
+    if not keys:
+        return
+    missing_mask = sample_df[keys].isna().any(axis=1)
+    if missing_mask.any():
+        missing_counts = sample_df.loc[missing_mask, keys].isna().sum().to_dict()
+        raise ValueError(
+            "Found missing values in key columns for sample "
+            f"{sample_name}. Missing counts: {missing_counts}."
+        )
 
 
 def main(roles: dict, **kwargs):
@@ -46,6 +61,7 @@ def main(roles: dict, **kwargs):
         if not keys:
             print("DF without keys was found")
             continue
+        _validate_missing_keys(df, list(keys), name)
         df = _drop_key_duplicates(df, list(keys), name)
         groups.setdefault(keys, {})[name] = df
 

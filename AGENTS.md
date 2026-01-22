@@ -12,3 +12,4 @@
 ## Development tips
 - Use `scenario_tester.py` to validate column selection/merging changes quickly.
 - Keep key columns intact; only non-key metric columns are renamed.
+- `main.py` validates missing values in key columns and checks for duplicate key rows before processing.
