@@ -17,17 +17,13 @@ def _drop_key_duplicates(sample_df: pd.DataFrame, keys: list, sample_name: str) 
 
     duplicate_by_keys = sample_df.duplicated(subset=keys).sum()
     duplicate_by_all = sample_df.duplicated().sum()
-    if duplicate_by_keys != duplicate_by_all:
-        raise ValueError(
-            "Found non-identical duplicates for sample "
-            f"{sample_name}. Duplicates by keys: {duplicate_by_keys}, "
-            f"duplicates by all columns: {duplicate_by_all}."
-        )
     if duplicate_by_all:
         raise ValueError(
             "Found duplicate rows for sample "
             f"{sample_name}. Duplicates by keys: {duplicate_by_keys}."
         )
+    if duplicate_by_keys:
+        sample_df = sample_df.drop_duplicates(subset=keys, keep="first").reset_index(drop=True)
     return sample_df
 
 
