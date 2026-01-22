@@ -75,20 +75,20 @@ def process_dataframes(
                 status_col = versions[chosen_version].get("status")
                 if score_col:
                     df1_cols.append(score_col)
-                    df1_rename[score_col] = base
+                    df1_rename[score_col] = f"{base}_auto_driver_score"
                 if status_col:
                     df1_cols.append(status_col)
-                    df1_rename[status_col] = f"status_{base}"
+                    df1_rename[status_col] = f"status_{base}_auto_driver_score"
 
             if has_full_prom and "prom" in versions:
                 score_col = versions["prom"].get("score")
                 status_col = versions["prom"].get("status")
                 if score_col:
                     df2_cols.append(score_col)
-                    df2_rename[score_col] = base
+                    df2_rename[score_col] = f"{base}_auto_driver_score"
                 if status_col:
                     df2_cols.append(status_col)
-                    df2_rename[status_col] = f"status_{base}"
+                    df2_rename[status_col] = f"status_{base}_auto_driver_score"
 
         if df1_cols:
             temp_df = sample_df[keys + df1_cols].copy().rename(columns=df1_rename)

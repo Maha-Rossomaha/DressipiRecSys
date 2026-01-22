@@ -35,19 +35,6 @@ def main(roles: dict, **kwargs):
     for idx, (group_keys, group_samples) in enumerate(group_items, start=1):
         out_df1, out_df2 = process_dataframes(group_samples, list(group_keys))
 
-        def rename_score_cols(df):
-            if df is None:
-                return None
-            df = df.copy()
-            df.columns = [
-                c if c in group_keys else f"{c}_auto_driver_score"
-                for c in df.columns
-            ]
-            return df
-
-        out_df1 = rename_score_cols(out_df1)
-        out_df2 = rename_score_cols(out_df2)
-
         outputs[f"out_df1_g{idx}"] = out_df1
         outputs[f"out_df2_g{idx}"] = out_df2
 
