@@ -3,6 +3,18 @@ import pandas as pd
 
 
 def _drop_key_duplicates(sample_df: pd.DataFrame, keys: list, sample_name: str) -> pd.DataFrame:
+    non_key_columns = [col for col in sample_df.columns if col not in keys]
+    if non_key_columns:
+        null_metrics_mask = sample_df[non_key_columns].isna().all(axis=1)
+        if null_metrics_mask.any():
+            null_metrics_df = sample_df[null_metrics_mask]
+            null_metrics_df = null_metrics_df.drop_duplicates(subset=keys)
+            sample_df = (
+                pd.concat([sample_df[~null_metrics_mask], null_metrics_df])
+                .sort_index()
+                .reset_index(drop=True)
+            )
+
     duplicate_by_keys = sample_df.duplicated(subset=keys).sum()
     duplicate_by_all = sample_df.duplicated().sum()
     if duplicate_by_keys != duplicate_by_all:
