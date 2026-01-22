@@ -7,7 +7,15 @@ def make_df(columns, rows):
     return pd.DataFrame(rows, columns=columns)
 
 
-def run_case(title, samples, keys, expected_df1_cols=None, expected_df2_cols=None):
+def run_case(
+    title,
+    samples,
+    keys,
+    expected_df1_cols=None,
+    expected_df2_cols=None,
+    expected_df1_rows=None,
+    expected_df2_rows=None,
+):
     print(f"\n=== {title} ===")
     out_df1, out_df2 = process_dataframes(samples, keys)
     print("df1:")
@@ -18,11 +26,21 @@ def run_case(title, samples, keys, expected_df1_cols=None, expected_df2_cols=Non
         assert list(out_df1.columns) == expected_df1_cols, (
             f"df1 columns mismatch: {list(out_df1.columns)}"
         )
+    if expected_df1_rows is not None:
+        assert len(out_df1) == expected_df1_rows, (
+            f"df1 row count mismatch: {len(out_df1)}"
+        )
     if expected_df2_cols is not None:
         if out_df2 is None:
             raise AssertionError("df2 is None but expected columns were provided")
         assert list(out_df2.columns) == expected_df2_cols, (
             f"df2 columns mismatch: {list(out_df2.columns)}"
+        )
+    if expected_df2_rows is not None:
+        if out_df2 is None:
+            raise AssertionError("df2 is None but expected rows were provided")
+        assert len(out_df2) == expected_df2_rows, (
+            f"df2 row count mismatch: {len(out_df2)}"
         )
 
 
@@ -104,6 +122,50 @@ def main():
             "status_kk_score_auto_driver_score",
         ],
         expected_df2_cols=None,
+    )
+
+    df_dup_a = make_df(
+        ["c1", "c3", "pk_pd_score_new"],
+        [[1, "2024-01-01", 0.5], [1, "2024-01-01", 0.7]],
+    )
+    df_dup_b = make_df(
+        ["c1", "c3", "kk_score_new"],
+        [[1, "2024-01-01", 0.2]],
+    )
+
+    run_case(
+        "duplicate keys preserve row count",
+        {"dup_a": df_dup_a, "dup_b": df_dup_b},
+        keys,
+        expected_df1_cols=[
+            "c1",
+            "c3",
+            "pk_pd_score_auto_driver_score",
+            "kk_score_auto_driver_score",
+        ],
+        expected_df1_rows=2,
+    )
+
+    df_missing_a = make_df(
+        ["c1", "c3", "pk_pd_score_new"],
+        [[1, "2024-01-01", 0.45], [2, None, 0.55]],
+    )
+    df_missing_b = make_df(
+        ["c1", "c3", "kk_score_new"],
+        [[1, "2024-01-01", 0.15], [2, "2024-01-02", 0.25]],
+    )
+
+    run_case(
+        "missing keys drop on merge",
+        {"missing_a": df_missing_a, "missing_b": df_missing_b},
+        keys,
+        expected_df1_cols=[
+            "c1",
+            "c3",
+            "pk_pd_score_auto_driver_score",
+            "kk_score_auto_driver_score",
+        ],
+        expected_df1_rows=1,
     )
 
 
