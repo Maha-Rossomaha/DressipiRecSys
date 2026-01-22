@@ -165,7 +165,7 @@ def main():
             "pk_pd_score_auto_driver_score",
             "kk_score_auto_driver_score",
         ],
-        expected_df1_rows=1,
+        expected_df1_rows=3,
     )
 
 

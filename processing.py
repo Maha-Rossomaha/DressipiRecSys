@@ -108,7 +108,8 @@ def process_dataframes(
                 frame = frame.drop(columns=sorted(overlap))
             if len(frame.columns) == len(keys):
                 continue
-            merged = merged.merge(frame, on=keys, how="inner")
+            merged = merged.merge(frame, on=keys, how="outer")
+        merged = merged.where(pd.notna(merged), None)
         return merged
 
     merged_extra_1 = merge_frames(df1_frames)
