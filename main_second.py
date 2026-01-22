@@ -55,13 +55,23 @@ def main(
     out_df1 = _apply_scores_merge(out_df1, df_with_best_scores_g1, keys, tag="BEST_G1")
     out_df1 = _apply_scores_merge(out_df1, df_with_best_scores_g2, keys, tag="BEST_G2")
 
-    out_df2 = df.copy()
-    out_df2 = _apply_scores_merge(out_df2, df_with_prom_scores_g1, keys, tag="PROM_G1")
-    out_df2 = _apply_scores_merge(out_df2, df_with_prom_scores_g2, keys, tag="PROM_G2")
+    has_prom_scores = any(
+        isinstance(scores_df, pd.DataFrame) and not scores_df.empty
+        for scores_df in (df_with_prom_scores_g1, df_with_prom_scores_g2)
+    )
+    if has_prom_scores:
+        out_df2 = df.copy()
+        out_df2 = _apply_scores_merge(out_df2, df_with_prom_scores_g1, keys, tag="PROM_G1")
+        out_df2 = _apply_scores_merge(out_df2, df_with_prom_scores_g2, keys, tag="PROM_G2")
+    else:
+        out_df2 = None
 
     print("Initial RAW df shape:", df.shape)
     print("Output Best Scores df shape:", out_df1.shape)
-    print("Output Prom Scores df shape:", out_df2.shape)
+    if out_df2 is None:
+        print("Output Prom Scores df shape: None (no prom scores)")
+    else:
+        print("Output Prom Scores df shape:", out_df2.shape)
     print()
 
     return {
