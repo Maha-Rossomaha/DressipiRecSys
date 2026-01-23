@@ -11,10 +11,15 @@ def main(
     ):
 
     features.columns = [k.lower() for k in features.columns]
-    sample_1.columns = [k.lower() for k in sample_1.columns]
-    sample_2.columns = [k.lower() for k in sample_2.columns]
-    sample_3.columns = [k.lower() for k in sample_3.columns]
-    sample_4.columns = [k.lower() for k in sample_4.columns]
+    sample_dfs = {
+        'sample_1': sample_1,
+        'sample_2': sample_2,
+        'sample_3': sample_3,
+        'sample_4': sample_4,
+    }
+    provided_samples = {name: df for name, df in sample_dfs.items() if isinstance(df, pd.DataFrame)}
+    for name, df in provided_samples.items():
+        df.columns = [k.lower() for k in df.columns]
     
     short_target = None  
     keys = []
@@ -37,11 +42,15 @@ def main(
     
     if not isinstance(prom_score, pd.DataFrame):
         merge_columns = list(set(features.columns) & set(sample_1.columns))
-        print(merge_columns)
-        
-        for elem in sample_1.columns_metadata:
-            if elem['columnName'].lower() not in merge_columns+targets:
-                score_column = elem['columnName'].lower()
+        print('merge_columns', merge_columns)
+        sample_columns = [set(df.columns) for df in provided_samples.values()]
+        common_sample_columns = set.intersection(*sample_columns) if sample_columns else set()
+        baseline_candidates = sorted(common_sample_columns - set(features.columns) - {'integral_mode'})
+        print('baseline_candidates', baseline_candidates)
+        score_column = baseline_candidates[0] if baseline_candidates else None
+        print('baseline_column', score_column)
+        integral_mode_samples = [name for name, df in provided_samples.items() if 'integral_mode' in df.columns]
+        print('integral_mode_samples', integral_mode_samples)
         
         if len(merge_columns) != len(keys):
             print(f'В датафреймах со скорами лишние колонки: {list(set(merge_columns) - set(keys))}')
@@ -68,6 +77,10 @@ def main(
         print('*'*100)
         print(full_metadata)
         print('*'*100)
+        full_metadata = [x if x['columnName'] != 'integral_mode' else {'columnName': x['columnName'],
+                                   'role': 'Excluded',
+                                   'type': x['type'],
+                                   'statistics': None} for x in full_metadata]
         full_metadata = [x if ((x['role'] !='Other') | (x['columnName'] in merge_columns) | (x['columnName'] != 'integral_mode')) else {'columnName': x['columnName'],
                                    'role': 'Excluded',
                                    'type': x['type'],
@@ -91,40 +104,39 @@ def main(
             full_df_4 = None
         else:
             features_duplicates = features.duplicated(subset=merge_columns).sum()
-            sample_1_duplicates = sample_1.duplicated(subset=merge_columns + ['integral_mode'] if 'integral_mode' in sample_1.columns else merge_columns).sum()
-            sample_2_duplicates = sample_2.duplicated(subset=merge_columns).sum()
-            sample_3_duplicates = sample_3.duplicated(subset=merge_columns).sum()
-            sample_4_duplicates = sample_4.duplicated(subset=merge_columns).sum()
+            sample_duplicates = {}
+            for name, df in provided_samples.items():
+                subset = merge_columns + ['integral_mode'] if name == 'sample_1' and 'integral_mode' in df.columns else merge_columns
+                sample_duplicates[name] = df.duplicated(subset=subset).sum()
             
             if features_duplicates != 0:
                 print(f'В выборке features обнаружено {features_duplicates} дубликатов')
                 features = features.drop_duplicates(subset=merge_columns)
             
-            if sample_1_duplicates != 0:
-                print(f'В выборке sample_1 обнаружено {sample_1_duplicates} дубликатов')
-                sample_1 = sample_1.drop_duplicates(subset=merge_columns)
-                
-            if sample_2_duplicates != 0:
-                print(f'В выборке sample_2 обнаружено {sample_2_duplicates} дубликатов')
-                sample_2 = sample_2.drop_duplicates(subset=merge_columns)
-                
-            if sample_3_duplicates != 0:
-                print(f'В выборке sample_3 обнаружено {sample_3_duplicates} дубликатов')
-                sample_3 = sample_3.drop_duplicates(subset=merge_columns)
-                
-            if sample_4_duplicates != 0:
-                print(f'В выборке sample_4 обнаружено {sample_4_duplicates} дубликатов')
-                sample_4 = sample_4.drop_duplicates(subset=merge_columns)
+            for name, dup_count in sample_duplicates.items():
+                if dup_count != 0:
+                    print(f'В выборке {name} обнаружено {dup_count} дубликатов')
+                    subset = merge_columns + ['integral_mode'] if name == 'sample_1' and 'integral_mode' in provided_samples[name].columns else merge_columns
+                    provided_samples[name] = provided_samples[name].drop_duplicates(subset=subset)
+
+            sample_1 = provided_samples.get('sample_1')
+            sample_2 = provided_samples.get('sample_2')
+            sample_3 = provided_samples.get('sample_3')
+            sample_4 = provided_samples.get('sample_4')
+
+            full_df_1 = pd.merge(left=features, right=sample_1, how='inner', on=merge_columns) if sample_1 is not None else None
+            full_df_2 = pd.merge(left=features, right=sample_2, how='inner', on=merge_columns) if sample_2 is not None else None
+            full_df_3 = pd.merge(left=features, right=sample_3, how='inner', on=merge_columns) if sample_3 is not None else None
+            full_df_4 = pd.merge(left=features, right=sample_4, how='inner', on=merge_columns) if sample_4 is not None else None
             
-            full_df_1 = pd.merge(left=features, right=sample_1, how='inner', on=merge_columns)
-            full_df_2 = pd.merge(left=features, right=sample_2, how='inner', on=merge_columns)
-            full_df_3 = pd.merge(left=features, right=sample_3, how='inner', on=merge_columns)
-            full_df_4 = pd.merge(left=features, right=sample_4, how='inner', on=merge_columns)
-            
-            full_df_1.columns_metadata = full_metadata
-            full_df_2.columns_metadata = full_metadata
-            full_df_3.columns_metadata = full_metadata
-            full_df_4.columns_metadata = full_metadata
+            if full_df_1 is not None:
+                full_df_1.columns_metadata = full_metadata
+            if full_df_2 is not None:
+                full_df_2.columns_metadata = full_metadata
+            if full_df_3 is not None:
+                full_df_3.columns_metadata = full_metadata
+            if full_df_4 is not None:
+                full_df_4.columns_metadata = full_metadata
             
     else:
         prom_score.columns = [k.lower() for k in prom_score.columns]
@@ -132,10 +144,14 @@ def main(
         merge_columns = list(set(features.columns) & set(sample_1.columns) & set(prom_score.columns))
         
         print('merge_columns+targets', merge_columns+targets)
-        for elem in sample_1.columns_metadata:
-            if elem['columnName'].lower() not in merge_columns+targets:
-                if elem['columnName'].lower() != 'integral_mode':
-                    baseline_column = elem['columnName'].lower()
+        sample_columns = [set(df.columns) for df in provided_samples.values()]
+        common_sample_columns = set.intersection(*sample_columns) if sample_columns else set()
+        baseline_candidates = sorted(common_sample_columns - set(features.columns) - {'integral_mode'})
+        print('baseline_candidates', baseline_candidates)
+        baseline_column = baseline_candidates[0] if baseline_candidates else None
+        print('baseline_column', baseline_column)
+        integral_mode_samples = [name for name, df in provided_samples.items() if 'integral_mode' in df.columns]
+        print('integral_mode_samples', integral_mode_samples)
                 
         for elem in prom_score.columns_metadata:
             if elem['columnName'].lower() not in merge_columns+targets:
@@ -181,6 +197,10 @@ def main(
         print('*'*100)
         print(full_metadata)
         print('*'*100)
+        full_metadata = [x if x['columnName'] != 'integral_mode' else {'columnName': x['columnName'],
+                                   'role': 'Excluded',
+                                   'type': x['type'],
+                                   'statistics': None} for x in full_metadata]
         full_metadata = [x if ((x['role'] !='Other') | (x['columnName'] in merge_columns) | (x['columnName'] != 'integral_mode')) else {'columnName': x['columnName'],
                                    'role': 'Excluded',
                                    'type': x['type'],
@@ -205,11 +225,10 @@ def main(
         else:
             features_duplicates = features.duplicated(subset=merge_columns).sum()
             prom_score_duplicates = prom_score.duplicated(subset=merge_columns).sum()
-            sample_1_duplicates = sample_1.duplicated(subset=merge_columns + ['integral_mode'] if 'integral_mode' in sample_1.columns else merge_columns).sum()
-            
-            sample_2_duplicates = sample_2.duplicated(subset=merge_columns).sum()
-            sample_3_duplicates = sample_3.duplicated(subset=merge_columns).sum()
-            sample_4_duplicates = sample_4.duplicated(subset=merge_columns).sum()
+            sample_duplicates = {}
+            for name, df in provided_samples.items():
+                subset = merge_columns + ['integral_mode'] if name == 'sample_1' and 'integral_mode' in df.columns else merge_columns
+                sample_duplicates[name] = df.duplicated(subset=subset).sum()
             
             if features_duplicates != 0:
                 print(f'В выборке features обнаружено {features_duplicates} дубликатов')
@@ -219,35 +238,34 @@ def main(
                 print(f'В выборке features обнаружено {prom_score_duplicates} дубликатов')
                 prom_score = prom_score.drop_duplicates(subset=merge_columns)
             
-            if sample_1_duplicates != 0:
-                print(f'В выборке sample_1 обнаружено {sample_1_duplicates} дубликатов')
-                sample_1 = sample_1.drop_duplicates(subset=merge_columns)
-                
-            if sample_2_duplicates != 0:
-                print(f'В выборке sample_2 обнаружено {sample_2_duplicates} дубликатов')
-                sample_2 = sample_2.drop_duplicates(subset=merge_columns)
-                
-            if sample_3_duplicates != 0:
-                print(f'В выборке sample_3 обнаружено {sample_3_duplicates} дубликатов')
-                sample_3 = sample_3.drop_duplicates(subset=merge_columns)
-                
-            if sample_4_duplicates != 0:
-                print(f'В выборке sample_4 обнаружено {sample_4_duplicates} дубликатов')
-                sample_4 = sample_4.drop_duplicates(subset=merge_columns)
+            for name, dup_count in sample_duplicates.items():
+                if dup_count != 0:
+                    print(f'В выборке {name} обнаружено {dup_count} дубликатов')
+                    subset = merge_columns + ['integral_mode'] if name == 'sample_1' and 'integral_mode' in provided_samples[name].columns else merge_columns
+                    provided_samples[name] = provided_samples[name].drop_duplicates(subset=subset)
+
+            sample_1 = provided_samples.get('sample_1')
+            sample_2 = provided_samples.get('sample_2')
+            sample_3 = provided_samples.get('sample_3')
+            sample_4 = provided_samples.get('sample_4')
+
+            full_df_1 = pd.merge(left=features, right=sample_1, how='inner', on=merge_columns) if sample_1 is not None else None
+            full_df_1 = pd.merge(left=prom_score, right=full_df_1, how='inner', on=merge_columns) if full_df_1 is not None else None
+            full_df_2 = pd.merge(left=features, right=sample_2, how='inner', on=merge_columns) if sample_2 is not None else None
+            full_df_2 = pd.merge(left=prom_score, right=full_df_2, how='inner', on=merge_columns) if full_df_2 is not None else None
+            full_df_3 = pd.merge(left=features, right=sample_3, how='inner', on=merge_columns) if sample_3 is not None else None
+            full_df_3 = pd.merge(left=prom_score, right=full_df_3, how='inner', on=merge_columns) if full_df_3 is not None else None
+            full_df_4 = pd.merge(left=features, right=sample_4, how='inner', on=merge_columns) if sample_4 is not None else None
+            full_df_4 = pd.merge(left=prom_score, right=full_df_4, how='inner', on=merge_columns) if full_df_4 is not None else None
             
-            full_df_1 = pd.merge(left=features, right=sample_1, how='inner', on=merge_columns)
-            full_df_1 = pd.merge(left=prom_score, right=full_df_1, how='inner', on=merge_columns)
-            full_df_2 = pd.merge(left=features, right=sample_2, how='inner', on=merge_columns)
-            full_df_2 = pd.merge(left=prom_score, right=full_df_2, how='inner', on=merge_columns)
-            full_df_3 = pd.merge(left=features, right=sample_3, how='inner', on=merge_columns)
-            full_df_3 = pd.merge(left=prom_score, right=full_df_3, how='inner', on=merge_columns)
-            full_df_4 = pd.merge(left=features, right=sample_4, how='inner', on=merge_columns)
-            full_df_4 = pd.merge(left=prom_score, right=full_df_4, how='inner', on=merge_columns)
-            
-            full_df_1.columns_metadata = full_metadata
-            full_df_2.columns_metadata = full_metadata
-            full_df_3.columns_metadata = full_metadata
-            full_df_4.columns_metadata = full_metadata
+            if full_df_1 is not None:
+                full_df_1.columns_metadata = full_metadata
+            if full_df_2 is not None:
+                full_df_2.columns_metadata = full_metadata
+            if full_df_3 is not None:
+                full_df_3.columns_metadata = full_metadata
+            if full_df_4 is not None:
+                full_df_4.columns_metadata = full_metadata
         
         
     return {'full_df_1': full_df_1,
