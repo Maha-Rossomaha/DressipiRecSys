@@ -35,10 +35,15 @@ def test_only_sample_1_integral_mode_in_sample_1():
         {'id': 'ID', 'baseline_score': 'Other', 'integral_mode': 'Other'},
     )
 
-    result = main(features=features, sample_1=sample_1)
+    roles_input = {
+        'id': ['ID', 'Interval'],
+        'target': ['Target', 'Interval'],
+        'integral_mode': ['Other', 'Interval'],
+    }
+    result = main(roles=roles_input, features=features, sample_1=sample_1)
     roles = result['roles']
     assert get_role(roles, 'baseline_score') == 'Baseline'
-    assert get_role(roles, 'integral_mode') == 'Excluded'
+    assert get_role(roles, 'integral_mode') == 'Other'
     assert result['full_df_2'] is None
 
 
@@ -56,10 +61,20 @@ def test_multiple_samples_integral_mode_everywhere():
         {'id': 'ID', 'baseline_score': 'Other', 'integral_mode': 'Other'},
     )
 
-    result = main(features=features, sample_1=sample_1, sample_2=sample_2)
+    roles_input = {
+        'id': ['ID', 'Interval'],
+        'target': ['Target', 'Interval'],
+        'integral_mode': ['Other', 'Interval'],
+    }
+    result = main(
+        roles=roles_input,
+        features=features,
+        sample_1=sample_1,
+        sample_2=sample_2,
+    )
     roles = result['roles']
     assert get_role(roles, 'baseline_score') == 'Baseline'
-    assert get_role(roles, 'integral_mode') == 'Excluded'
+    assert get_role(roles, 'integral_mode') == 'Other'
     assert result['full_df_2'] is not None
 
 
@@ -81,7 +96,15 @@ def test_prom_score_with_multiple_samples():
         {'id': 'ID', 'baseline_score': 'Other', 'integral_mode': 'Other'},
     )
 
+    roles_input = {
+        'id': ['ID', 'Interval'],
+        'target': ['Target', 'Interval'],
+        'status': ['Other', 'Interval'],
+        'integral_mode': ['Other', 'Interval'],
+        'mr2_score': ['Other', 'Interval'],
+    }
     result = main(
+        roles=roles_input,
         features=features,
         prom_score=prom_score,
         sample_1=sample_1,
@@ -89,9 +112,9 @@ def test_prom_score_with_multiple_samples():
     )
     roles = result['roles']
     assert get_role(roles, 'baseline_score') == 'Baseline'
-    assert get_role(roles, 'mr2_score') == 'MR2'
-    assert get_role(roles, 'status') == 'Excluded'
-    assert get_role(roles, 'integral_mode') == 'Excluded'
+    assert get_role(roles, 'mr2_score') == 'Other'
+    assert get_role(roles, 'status') == 'Other'
+    assert get_role(roles, 'integral_mode') == 'Other'
 
 
 if __name__ == '__main__':

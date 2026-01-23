@@ -1,7 +1,31 @@
 import pandas as pd
 
 
+def _find_column_type(column_name, dataframes):
+    for df in dataframes:
+        if df is None or not hasattr(df, "columns_metadata"):
+            continue
+        for meta in df.columns_metadata:
+            if meta["columnName"].lower() == column_name:
+                return meta.get("type") or "Interval"
+    return "Interval"
+
+
+def _ensure_baseline_role(roles, baseline_column, dataframes):
+    if not baseline_column:
+        return
+    baseline_type = roles.get(baseline_column, [None, None])[1]
+    if not baseline_type:
+        baseline_type = _find_column_type(baseline_column, dataframes)
+    current_role = roles.get(baseline_column, [None])[0]
+    if current_role == "Baseline":
+        return
+    roles[baseline_column] = ["Baseline", baseline_type]
+    print(f"Колонка {baseline_column} стала Baseline")
+
+
 def main(
+    roles: dict = None,
     features: pd.DataFrame = None,   #сэмпл с фичами
     prom_score: pd.DataFrame = None, #сэмпл с фичами
     sample_1: pd.DataFrame = None,
@@ -33,6 +57,8 @@ def main(
     
     print(short_target, target)
     
+    roles = {k.lower(): v for k, v in (roles or {}).items()}
+
     if short_target:
         targets = [short_target, target]    
     else: 
@@ -55,48 +81,11 @@ def main(
         if len(merge_columns) != len(keys):
             print(f'В датафреймах со скорами лишние колонки: {list(set(merge_columns) - set(keys))}')
         
-        features_metadata = [{'columnName': x['columnName'].lower(),
-                          'role': x['role'],
-                          'type': x['type'],
-                          'statistics': None} for x in features.columns_metadata.copy()]
-        sample_1_metadata = [{'columnName': x['columnName'].lower(),
-                          'role': x['role'],
-                          'type': x['type'],
-                          'statistics': None} for x in sample_1.columns_metadata.copy()]
-        
-        new_metadata = features_metadata + [x for x in sample_1_metadata if x['columnName'] not in merge_columns+targets]
-        full_metadata = [{'columnName': x['columnName'].lower(),
-                          'role': x['role'],
-                          'type': x['type'],
-                          'statistics': None} for x in new_metadata]
-        
-        full_metadata = [x if x['columnName'] != score_column else {'columnName': x['columnName'],
-                                   'role': 'Baseline',
-                                   'type': 'Interval',
-                                   'statistics': None} for x in full_metadata]
-        print('*'*100)
-        print(full_metadata)
-        print('*'*100)
-        full_metadata = [x if x['columnName'] != 'integral_mode' else {'columnName': x['columnName'],
-                                   'role': 'Excluded',
-                                   'type': x['type'],
-                                   'statistics': None} for x in full_metadata]
-        full_metadata = [x if ((x['role'] !='Other') | (x['columnName'] in merge_columns) | (x['columnName'] != 'integral_mode')) else {'columnName': x['columnName'],
-                                   'role': 'Excluded',
-                                   'type': x['type'],
-                                   'statistics': None} for x in full_metadata]
-        print('-'*100)
-        print(full_metadata)
-        print('-'*100)
-        #full_metadata = [x if x['role'] != 'ID' else {'columnName': x['columnName'],
-        #                           'role': 'Other',
-        #                           'type': x['type'],
-        #                           'statistics': None} for x in full_metadata]
-        #print('~'*100)
-        #print(full_metadata)
-        #print('~'*100)
-        
-        roles = {item['columnName']: [item['role'], item['type']] for item in full_metadata}
+        _ensure_baseline_role(
+            roles,
+            score_column,
+            [features, sample_1, sample_2, sample_3, sample_4],
+        )
 
         if len(merge_columns) == 0:
             print('В датафреймах нет общих колонок')
@@ -147,70 +136,11 @@ def main(
         integral_mode_samples = [name for name, df in provided_samples.items() if 'integral_mode' in df.columns]
         print('integral_mode_samples', integral_mode_samples)
                 
-        for elem in prom_score.columns_metadata:
-            if elem['columnName'].lower() not in merge_columns+targets:
-                if elem['columnName'].lower() != 'status':
-                    mr2_column = elem['columnName'].lower()
-                else:
-                    status_column = elem['columnName'].lower()
-        
-        features_metadata = [{'columnName': x['columnName'].lower(),
-                          'role': x['role'],
-                          'type': x['type'],
-                          'statistics': None} for x in features.columns_metadata.copy()]
-        sample_1_metadata = [{'columnName': x['columnName'].lower(),
-                          'role': x['role'],
-                          'type': x['type'],
-                          'statistics': None} for x in sample_1.columns_metadata.copy()]
-        prom_score_metadata = [{'columnName': x['columnName'].lower(),
-                          'role': x['role'],
-                          'type': x['type'],
-                          'statistics': None} for x in prom_score.columns_metadata.copy()]
-        
-        new_metadata = features_metadata + [x for x in sample_1_metadata if x['columnName'] not in merge_columns+targets] + [x for x in prom_score_metadata if x['columnName'] not in merge_columns+targets]
-        full_metadata = [{'columnName': x['columnName'].lower(),
-                          'role': x['role'],
-                          'type': x['type'],
-                          'statistics': None} for x in new_metadata]
-        
-        full_metadata = [x if x['columnName'] != baseline_column else {'columnName': x['columnName'],
-                                   'role': 'Baseline',
-                                   'type': 'Interval',
-                                   'statistics': None} for x in full_metadata]
-        
-        full_metadata = [x if x['columnName'] != mr2_column else {'columnName': x['columnName'],
-                                   'role': 'MR2',
-                                   'type': 'Interval',
-                                   'statistics': None} for x in full_metadata]
-        
-        full_metadata = [x if x['columnName'] != status_column else {'columnName': x['columnName'],
-                                   'role': 'Excluded',
-                                   'type': 'Interval',
-                                   'statistics': None} for x in full_metadata]
-        
-        print('*'*100)
-        print(full_metadata)
-        print('*'*100)
-        full_metadata = [x if x['columnName'] != 'integral_mode' else {'columnName': x['columnName'],
-                                   'role': 'Excluded',
-                                   'type': x['type'],
-                                   'statistics': None} for x in full_metadata]
-        full_metadata = [x if ((x['role'] !='Other') | (x['columnName'] in merge_columns) | (x['columnName'] != 'integral_mode')) else {'columnName': x['columnName'],
-                                   'role': 'Excluded',
-                                   'type': x['type'],
-                                   'statistics': None} for x in full_metadata]
-        print('-'*100)
-        print(full_metadata)
-        print('-'*100)
-        #full_metadata = [x if x['role'] != 'ID' else {'columnName': x['columnName'],
-        #                           'role': 'Other',
-        #                           'type': x['type'],
-        #                           'statistics': None} for x in full_metadata]
-        #print('~'*100)
-        #print(full_metadata)
-        #print('~'*100)
-        
-        roles = {item['columnName']: [item['role'], item['type']] for item in full_metadata}
+        _ensure_baseline_role(
+            roles,
+            baseline_column,
+            [features, prom_score, sample_1, sample_2, sample_3, sample_4],
+        )
 
         if len(merge_columns) == 0:
             print('В датафреймах нет общих колонок')
