@@ -96,6 +96,8 @@ def main(
         #print(full_metadata)
         #print('~'*100)
         
+        roles = {item['columnName']: [item['role'], item['type']] for item in full_metadata}
+
         if len(merge_columns) == 0:
             print('В датафреймах нет общих колонок')
             full_df_1 = None
@@ -129,14 +131,6 @@ def main(
             full_df_3 = pd.merge(left=features, right=sample_3, how='inner', on=merge_columns) if sample_3 is not None else None
             full_df_4 = pd.merge(left=features, right=sample_4, how='inner', on=merge_columns) if sample_4 is not None else None
             
-            if full_df_1 is not None:
-                full_df_1.columns_metadata = full_metadata
-            if full_df_2 is not None:
-                full_df_2.columns_metadata = full_metadata
-            if full_df_3 is not None:
-                full_df_3.columns_metadata = full_metadata
-            if full_df_4 is not None:
-                full_df_4.columns_metadata = full_metadata
             
     else:
         prom_score.columns = [k.lower() for k in prom_score.columns]
@@ -216,6 +210,8 @@ def main(
         #print(full_metadata)
         #print('~'*100)
         
+        roles = {item['columnName']: [item['role'], item['type']] for item in full_metadata}
+
         if len(merge_columns) == 0:
             print('В датафреймах нет общих колонок')
             full_df_1 = None
@@ -258,18 +254,10 @@ def main(
             full_df_4 = pd.merge(left=features, right=sample_4, how='inner', on=merge_columns) if sample_4 is not None else None
             full_df_4 = pd.merge(left=prom_score, right=full_df_4, how='inner', on=merge_columns) if full_df_4 is not None else None
             
-            if full_df_1 is not None:
-                full_df_1.columns_metadata = full_metadata
-            if full_df_2 is not None:
-                full_df_2.columns_metadata = full_metadata
-            if full_df_3 is not None:
-                full_df_3.columns_metadata = full_metadata
-            if full_df_4 is not None:
-                full_df_4.columns_metadata = full_metadata
-        
         
     return {'full_df_1': full_df_1,
             'full_df_2': full_df_2,
             'full_df_3': full_df_3,
-            'full_df_4': full_df_4
+            'full_df_4': full_df_4,
+            'roles': roles
            }

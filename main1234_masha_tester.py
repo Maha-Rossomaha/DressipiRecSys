@@ -18,11 +18,11 @@ def make_df(data, roles):
     return df
 
 
-def get_role(metadata, column_name):
-    for item in metadata:
-        if item['columnName'] == column_name:
-            return item['role']
-    return None
+def get_role(roles, column_name):
+    role_info = roles.get(column_name)
+    if not role_info:
+        return None
+    return role_info[0]
 
 
 def test_only_sample_1_integral_mode_in_sample_1():
@@ -36,9 +36,9 @@ def test_only_sample_1_integral_mode_in_sample_1():
     )
 
     result = main(features=features, sample_1=sample_1)
-    metadata = result['full_df_1'].columns_metadata
-    assert get_role(metadata, 'baseline_score') == 'Baseline'
-    assert get_role(metadata, 'integral_mode') == 'Excluded'
+    roles = result['roles']
+    assert get_role(roles, 'baseline_score') == 'Baseline'
+    assert get_role(roles, 'integral_mode') == 'Excluded'
     assert result['full_df_2'] is None
 
 
@@ -57,9 +57,9 @@ def test_multiple_samples_integral_mode_everywhere():
     )
 
     result = main(features=features, sample_1=sample_1, sample_2=sample_2)
-    metadata = result['full_df_1'].columns_metadata
-    assert get_role(metadata, 'baseline_score') == 'Baseline'
-    assert get_role(metadata, 'integral_mode') == 'Excluded'
+    roles = result['roles']
+    assert get_role(roles, 'baseline_score') == 'Baseline'
+    assert get_role(roles, 'integral_mode') == 'Excluded'
     assert result['full_df_2'] is not None
 
 
@@ -87,11 +87,11 @@ def test_prom_score_with_multiple_samples():
         sample_1=sample_1,
         sample_2=sample_2,
     )
-    metadata = result['full_df_1'].columns_metadata
-    assert get_role(metadata, 'baseline_score') == 'Baseline'
-    assert get_role(metadata, 'mr2_score') == 'MR2'
-    assert get_role(metadata, 'status') == 'Excluded'
-    assert get_role(metadata, 'integral_mode') == 'Excluded'
+    roles = result['roles']
+    assert get_role(roles, 'baseline_score') == 'Baseline'
+    assert get_role(roles, 'mr2_score') == 'MR2'
+    assert get_role(roles, 'status') == 'Excluded'
+    assert get_role(roles, 'integral_mode') == 'Excluded'
 
 
 if __name__ == '__main__':
